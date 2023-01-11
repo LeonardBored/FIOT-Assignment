@@ -1,9 +1,3 @@
-from sensors.buzzer import buzzer_on
-from sensors.LCD import LCD
-from sensors.LED import LED_State
-from sensors.rfid import rfid
-from sensors.servo import servo
-
 # modules Imported from python's library
 import socket
 import traceback
