@@ -8,13 +8,15 @@ String urlEncoded = "application/x-www-form-urlencoded";
 String cmd;
 
 // replace with your Thingspeak channel's API key!!!
-String apiKey = "X70D267QPHCW3W0B"; // ****************************************************************** Change this!
+String apiWriteKey = "2W54NENKHMAMNK71";
+String apiReadKey = "N0KL9SHVN3B1YOD7";
 
 String twitterAPIKey = "Y6OS7WNU7BSQDADR";
 String tweetURI = "/apps/thingtweet/1/statuses/update";
 
 // UNO's D10 connected to ESP's TX
 // UNO's D11 connected to ESP's RX via resistor network
+
 SoftwareSerial ser(10, 11); // RX, TX
 // LED at D13
 int ledPin = 5;
@@ -46,7 +48,7 @@ void loop()
     String temp = String(voltage);                // convert to string
     Serial.println("Voltage: " + temp);
 
-    String getStr = "/update?api_key=" + apiKey + "&field1=" + temp;
+    String getStr = "/update?api_key=" + apiWriteKey + "&field1=" + temp;
 
     // when button pressed, led and buzzer on //
     if (digitalRead(buttonPin) == HIGH)

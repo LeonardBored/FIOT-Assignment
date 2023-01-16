@@ -1,5 +1,5 @@
 // ultrasonic ranger sample code
-
+#include <SoftwareSerial.h>
 const int Trig = 13; // Trig connected to pin 13
 const int Echo = 12; // Echo connected to pin 12
 

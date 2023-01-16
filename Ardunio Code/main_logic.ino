@@ -10,13 +10,15 @@
 #include <stdlib.h>
 #include <String.h>
 
-// Defining inputs and outputs //
+// import header file for thinkspeak + think tweet //
+#include "thinkspeak.h"
 
-// for servo motor //
-Servo myservo;
+// ==================== Defining sensors  ====================//
 
 // for ser //
-SoftwareSerial ser(10, 11); // RX, TX
+// SoftwareSerial ser(10, 11); // RX, TX
+SoftwareSerial ser(2, 3); // RX, TX
+
 
 // for RFID //
 #define SS_PIN 10
@@ -30,11 +32,12 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 const int buzzerPin = 8;
 
 // pin for servo motor //
+Servo myservo;
 const int servoPin = 9;
 
 // ultrasonic pins //
-const int Trig = 13; // Trig connected to pin 13
-const int Echo = 12; // Echo connected to pin 12
+const int Trig = 6; // Trig connected to pin 6
+const int Echo = 7; // Echo connected to pin 7
 
 void setup()
 {
@@ -46,7 +49,6 @@ void setup()
     // LCD Setup //
     lcd.init();
     lcd.backlight();
-    lcd.setCursor(0, 0);
     // ===========================================//
     // Buzzer Setup //
     pinMode(buzzerPin, OUTPUT);
@@ -68,27 +70,63 @@ void setup()
 
 // ========================= Below are functions for the individual sensors =========================//
 /// Buzzer Code //
-void Buzzer(int buzzerPin)
+void Buzzer(int buzzerPin, String condition)
 {
-    tone(buzzerPin, 2000); // play a tone at 2000 Hz
-    delay(1000);           // wait for 1 second
-    noTone(buzzerPin);     // stop the tone
-    delay(1000);           // wait for 1 second
+    if (condition == "Wrong RFID")
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            tone(buzzerPin, 262); // play a C note
+            delay(100);           // wait for 0.5 seconds
+            noTone(buzzerPin);    // stop the tone
+            delay(100);           // wait for 1 second
+        }
+    }
+    else if (condition == "Correct RFID")
+    {
+        tone(buzzerPin, 440, 500); // generate a tone of frequency 440Hz for 200ms
+        delay(200);                // delay for 200ms
+    }
 }
 
 /// RFID Code //
-void RFID()
+String RFID()
 {
     // Look for new cards
     if (!mfrc522.PICC_IsNewCardPresent())
     {
-        return;
+        return ".";
     }
 
     // Select one of the cards
     if (!mfrc522.PICC_ReadCardSerial())
     {
-        return;
+        return ".";
+    }
+
+    // Print the UID of the card
+    Serial.print("UID: ");
+    String uid = "";
+    for (byte i = 0; i < mfrc522.uid.size; i++)
+    {
+        // putting in uid string //
+        uid += String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        uid += String(mfrc522.uid.uidByte[i], HEX);
+
+        Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        Serial.print(mfrc522.uid.uidByte[i], HEX);
+    }
+    Serial.println(uid);
+
+    // check uid //
+    // other card uid (blue one) is  AC 31 A9 33 ac 31 a9 33 //
+    if (uid == " 45 a6 f5 2a")
+    {
+        return String(uid);
+    }
+    else
+    { // for invalid RFID //
+        return "false";
     }
 
     // Dump debug info about the card. PICC_HaltA() is automatically called.
@@ -99,15 +137,12 @@ void RFID()
 void servo_motor()
 {
     myservo.write(0);
-    delay(1000);
-    myservo.write(90);
-    delay(1000);
-    myservo.write(180);
-    delay(1000);
+    delay(10000);      // after 10s, door will close //
+    myservo.write(90); // sets the servo to the default position
 }
 
 // Ultrasonic ranger code //
-void ultrasonic_ranger()
+long ultrasonic_ranger()
 {
     long duration, cm;
 
@@ -128,17 +163,90 @@ void ultrasonic_ranger()
     Serial.print("cm");
     Serial.println();
     delay(500);
+    return cm;
 }
 
 // ========================= Above are functions for the individual sensors =========================//
 
-
 // ========================= Below is the main Loop =========================//
 void loop()
 {
-    
-    lcd.print("Hello, please scan your card!");
-    delay(1000);
-    lcd.begin(16,2); // reset the LCD //
-    delay(10000000);
+
+    // first, use Ultrasonic sensor to detect whether there is an object within 1m //
+    long dist = ultrasonic_ranger();
+    // storing of number of wrong attempts //
+    int wrongCount = 0;
+    // storing of inactivity as a count //
+    int inactiveCount = 0;
+
+    while (dist > 0 && dist <= 20 && wrongCount < 5 && inactiveCount < 10)
+    { // when ultrasonic detects an object from it with distance less than or = to 1m, it will on LCD
+        lcd.setCursor(0, 0);
+        lcd.begin(16, 2); // reset the LCD //
+        delay(500);
+        lcd.print("Welcome!");
+        lcd.setCursor(0, 1);
+        lcd.print("Turning on RFID...");
+        delay(1000);
+        lcd.setCursor(0, 0);
+        lcd.begin(16, 2); // reset the LCD //
+        delay(500);
+        lcd.print("RFID ready!");
+        lcd.setCursor(0, 1);
+        lcd.print("Scan card now...");
+        delay(3000);
+
+        String validRFID = RFID();
+        if (validRFID != "false" && validRFID != ".")
+        {                     // valid RFID card = Unlock DOOR //
+            lcd.begin(16, 2); // reset the LCD //
+            delay(500);
+            lcd.print("Valid Card!");
+            Buzzer(buzzerPin, "Correct RFID"); // sound the buzzer for correct //
+            servo_motor();                     // opening of door //
+            // send thinkspeak and thinktweet //
+            // validRFID contains the uid of the RFID //
+            postThinkSpeak(2); // upload for 2 fields //
+            
+            // Break out of loop //
+            delay(300);
+            lcd.begin(16, 2); // reset the LCD //
+            lcd.print("Offing LCD...");
+            delay(5000);
+            lcd.begin(16, 2); // reset the LCD //
+            break;
+        }
+        else if (validRFID == "false")
+        { // invalid RFID //
+            lcd.setCursor(0, 0);
+            lcd.begin(16, 2); // reset the LCD //
+            delay(500);
+            lcd.print("Invalid Card!");
+            lcd.setCursor(0, 1);
+            lcd.print("Please Try again!");
+            delay(500);
+            Buzzer(buzzerPin, "Wrong RFID"); // sound the buzzer for incorrect //
+            wrongCount += 1;
+        }
+        else // for the case where no RFId scan //
+        {
+            delay(100);
+            inactiveCount += 1;
+            lcd.begin(16, 2); // reset the LCD //
+        }
+    }
+
+    if (wrongCount == 5)
+    { // after 5 wrong attempts, door will be locked for 10 min and owner will be notified //
+      // first lock door for 10 min //
+      // for this demo, door will be locked for 10s //
+        lcd.setCursor(0, 0);
+        lcd.begin(16, 2); // reset the LCD //
+        lcd.print("DOOR IS LOCKED");
+        lcd.setCursor(0, 1);
+        lcd.print("for 10 minutes...");
+        delay(15000);
+
+        // notifying of owner via app by thinkspeak //
+    }
 }
