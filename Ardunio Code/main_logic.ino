@@ -195,7 +195,7 @@ void loop()
         {                     // valid RFID card = Unlock DOOR //
             lcd.begin(16, 2); // reset the LCD //
             delay(500);
-            lcd.print(F("Valid Card!"));
+            lcd.print(F("Valid Card..."));
             lcd.setCursor(0, 1);
             lcd.print(F("Welcome Home!"));
             Buzzer(buzzerPin, "Correct RFID"); // sound the buzzer for correct //
