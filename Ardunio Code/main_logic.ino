@@ -5,20 +5,12 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Servo.h>
-
 #include <SoftwareSerial.h>
-#include <stdlib.h>
-#include <String.h>
 
-// import header file for thinkspeak + think tweet //
+// ====== import from header file ====== //
 #include "thinkspeak.h"
 
 // ==================== Defining sensors  ====================//
-
-// for ser //
-// SoftwareSerial ser(10, 11); // RX, TX
-SoftwareSerial ser(2, 3); // RX, TX
-
 
 // for RFID //
 #define SS_PIN 10
@@ -29,18 +21,21 @@ MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance.
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // pin for the buzzer //
-const int buzzerPin = 8;
+static const int buzzerPin = 8;
 
 // pin for servo motor //
 Servo myservo;
-const int servoPin = 9;
+static const int servoPin = 9;
 
 // ultrasonic pins //
-const int Trig = 6; // Trig connected to pin 6
-const int Echo = 7; // Echo connected to pin 7
+static const int Trig = 6; // Trig connected to pin 6
+static const int Echo = 7; // Echo connected to pin 7
 
 void setup()
 {
+    // for ser //
+    // SoftwareSerial ser(10, 11); // RX, TX
+    SoftwareSerial ser(2, 3); // RX, TX
     // ===========================================//
     // RFID Setup //
     SPI.begin();        // Init SPI bus
@@ -64,7 +59,7 @@ void setup()
     while (!Serial)
     {
     }
-    Serial.println("Starting...");
+    Serial.println(F("Starting..."));
     ser.begin(9600);
 }
 
@@ -110,10 +105,10 @@ String RFID()
     for (byte i = 0; i < mfrc522.uid.size; i++)
     {
         // putting in uid string //
-        uid += String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        uid += String(mfrc522.uid.uidByte[i] < 0x10 ? F(" 0") : F(" "));
         uid += String(mfrc522.uid.uidByte[i], HEX);
 
-        Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? F(" 0") : F(" "));
         Serial.print(mfrc522.uid.uidByte[i], HEX);
     }
     Serial.println(uid);
@@ -128,9 +123,6 @@ String RFID()
     { // for invalid RFID //
         return "false";
     }
-
-    // Dump debug info about the card. PICC_HaltA() is automatically called.
-    mfrc522.PICC_DumpToSerial(&(mfrc522.uid));
 }
 
 // servo motor Code //
@@ -159,10 +151,14 @@ long ultrasonic_ranger()
     cm = duration / 58;
 
     // 3. display the obstacle distance in serial monitor
-    Serial.print(cm);
-    Serial.print("cm");
-    Serial.println();
-    delay(500);
+    if (cm <= 20)
+    {
+        Serial.print(F("Distance Detected: "));
+        Serial.print(cm);
+        Serial.print(F(" cm"));
+        Serial.println();
+        delay(500);
+    }
     return cm;
 }
 
@@ -183,36 +179,35 @@ void loop()
     { // when ultrasonic detects an object from it with distance less than or = to 1m, it will on LCD
         lcd.setCursor(0, 0);
         lcd.begin(16, 2); // reset the LCD //
-        delay(500);
-        lcd.print("Welcome!");
+        lcd.print(F("Welcome!"));
         lcd.setCursor(0, 1);
-        lcd.print("Turning on RFID...");
+        lcd.print(F("Turning on RFID..."));
         delay(1000);
         lcd.setCursor(0, 0);
         lcd.begin(16, 2); // reset the LCD //
-        delay(500);
-        lcd.print("RFID ready!");
+        lcd.print(F("RFID ready!"));
         lcd.setCursor(0, 1);
-        lcd.print("Scan card now...");
-        delay(3000);
+        lcd.print(F("Scan card now..."));
+        delay(2000);
 
         String validRFID = RFID();
         if (validRFID != "false" && validRFID != ".")
         {                     // valid RFID card = Unlock DOOR //
             lcd.begin(16, 2); // reset the LCD //
             delay(500);
-            lcd.print("Valid Card!");
+            lcd.print(F("Valid Card!"));
+            lcd.setCursor(0, 1);
+            lcd.print(F("Welcome Home!"));
             Buzzer(buzzerPin, "Correct RFID"); // sound the buzzer for correct //
             servo_motor();                     // opening of door //
+            lcd.begin(16, 2);                  // reset the LCD //
+            lcd.print(F("Offing LCD..."));
             // send thinkspeak and thinktweet //
             // validRFID contains the uid of the RFID //
-            postThinkSpeak(2); // upload for 2 fields //
-            
+            postThinkSpeak(1, 0, "");    // upload to thinkspeak that door has been opened //
+            postThinkTweet(F("Door Open")); // send to twitter, informing the owner //
+            postThinkSpeak(2, 1, validRFID);
             // Break out of loop //
-            delay(300);
-            lcd.begin(16, 2); // reset the LCD //
-            lcd.print("Offing LCD...");
-            delay(5000);
             lcd.begin(16, 2); // reset the LCD //
             break;
         }
@@ -221,9 +216,9 @@ void loop()
             lcd.setCursor(0, 0);
             lcd.begin(16, 2); // reset the LCD //
             delay(500);
-            lcd.print("Invalid Card!");
+            lcd.print(F("Invalid Card!"));
             lcd.setCursor(0, 1);
-            lcd.print("Please Try again!");
+            lcd.print(F("Please Try again!"));
             delay(500);
             Buzzer(buzzerPin, "Wrong RFID"); // sound the buzzer for incorrect //
             wrongCount += 1;
@@ -242,11 +237,14 @@ void loop()
       // for this demo, door will be locked for 10s //
         lcd.setCursor(0, 0);
         lcd.begin(16, 2); // reset the LCD //
-        lcd.print("DOOR IS LOCKED");
+        lcd.print(F("DOOR IS LOCKED"));
         lcd.setCursor(0, 1);
-        lcd.print("for 10 minutes...");
-        delay(15000);
-
+        lcd.print(F("for 10 minutes.."));
         // notifying of owner via app by thinkspeak //
+        postThinkSpeak(3, 0, "");    // upload to thinkspeak that door has been opened //
+        postThinkTweet(F("Incorrect attempts warning ")); // send to twitter, informing the owner //
+
+        delay(10000); // 10 sec waiting time //
+        lcd.begin(16, 2); // reset the LCD //
     }
 }
