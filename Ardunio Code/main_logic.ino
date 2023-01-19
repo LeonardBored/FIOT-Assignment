@@ -1,4 +1,3 @@
-
 // import libraries
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -9,7 +8,6 @@
 
 // ====== import from header file ====== //
 #include "thinkspeak.h"
-
 // ==================== Defining sensors  ====================//
 
 // for RFID //
@@ -21,21 +19,21 @@ MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance.
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // pin for the buzzer //
-static const int buzzerPin = 8;
+static int buzzerPin = 8;
 
 // pin for servo motor //
 Servo myservo;
-static const int servoPin = 9;
+static int servoPin = 9;
+
+// ser //
+SoftwareSerial ser(2, 3); // RX, TX
 
 // ultrasonic pins //
-static const int Trig = 6; // Trig connected to pin 6
-static const int Echo = 7; // Echo connected to pin 7
+static int Trig = 6; // Trig connected to pin 6
+static int Echo = 7; // Echo connected to pin 7
 
 void setup()
 {
-    // for ser //
-    // SoftwareSerial ser(10, 11); // RX, TX
-    SoftwareSerial ser(2, 3); // RX, TX
     // ===========================================//
     // RFID Setup //
     SPI.begin();        // Init SPI bus
@@ -100,7 +98,7 @@ String RFID()
     }
 
     // Print the UID of the card
-    Serial.print("UID: ");
+    Serial.print("Read RFID UID: ");
     String uid = "";
     for (byte i = 0; i < mfrc522.uid.size; i++)
     {
@@ -188,7 +186,6 @@ void loop()
         lcd.print(F("RFID ready!"));
         lcd.setCursor(0, 1);
         lcd.print(F("Scan card now..."));
-        delay(2000);
 
         String validRFID = RFID();
         if (validRFID != "false" && validRFID != ".")

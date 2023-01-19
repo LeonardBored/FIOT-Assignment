@@ -2,21 +2,21 @@
 #include <stdlib.h>
 #include <String.h>
 #include <SoftwareSerial.h>
-#define DEBUG true
-
-SoftwareSerial ser(2, 3); // RX, TX
-
+#include "main_logic.ino"
 // =====================================================//
 // Thinkspeak and thinktweet setup //
-String thingSpeak = "api.thingspeak.com";
+const char *thingSpeak = "api.thingspeak.com";
 
 // String apiWriteKey = "2W54NENKHMAMNK71";
 // String apiReadKey = "N0KL9SHVN3B1YOD7";
-
 // =====================================================//
 
+// Thinkspeak Function //
+// Field no is the field to post to thinkspeak and numberOfFields is the number of fields to post
+// after the initial fieldNo. uniqueInput allows to post to thinkspeak a unique input//
 void postThinkSpeak(int fieldNo, int numberOfFields, String uniqueInput)
 {
+    // Crafting of get request str //
     String apiWriteKey = F("Q3X0NH6PSG5W6DO1");
     String getStr = F("/update?api_key=");
     getStr += String(apiWriteKey);
@@ -39,56 +39,57 @@ void postThinkSpeak(int fieldNo, int numberOfFields, String uniqueInput)
         numberOfFields -= 1;
     }
 
+    // Crafting of get request str //
     String payload = F("GET https://");
     payload += thingSpeak + getStr;
     payload += "\r\n";
-    Serial.println("Payload to send: " + payload);
     tcp_connect();
     // Send data length & GET string
-    ser.println(F("AT+CIPSEND="));  
+    ser.print(F("AT+CIPSEND="));
     ser.println(payload.length());
-    Serial.print(F("AT+CIPSEND="));  
+    Serial.print(F("AT+CIPSEND="));
     Serial.println(payload.length());
 
     delay(1000);
-    ser.println(payload);  // send data 
+    ser.print(payload); // send data
     Serial.println(payload);
     delay(1000);
-    ser.println(F("AT+CIPCLOSE")); // close the connection 
-    Serial.println(F("AT+CIPCLOSE")); 
+    ser.print(F("AT+CIPCLOSE")); // close the connection
+    Serial.println(F("AT+CIPCLOSE"));
 }
 
 // think tweet function//
+// Conditions : Door Open OR Incorrect attempts warning //
 void postThinkTweet(String condition)
 {
     String twitterAPIKey = F("Y6OS7WNU7BSQDADR");
-    String tweetURI = F("https://api.thingspeak.com/apps/thingtweet/1/statuses/update");
+    String tweetURI = F("api.thingspeak.com/apps/thingtweet/1/statuses/update");
 
-    String payload = "";
+    // Crafting of post request str //
     String statusMessage = tempAlertTweet(condition, twitterAPIKey, tweetURI);
-    Serial.println("Status Message to send: " + statusMessage);
+    String payload = "";
+    payload += "POST " + String(tweetURI) + " HTTP/1.1\r\n";
+    payload += "Host: " + String(thingSpeak) + "\r\n";
+    payload += "Content-Type: application/x-www-form-urlencoded\r\n";
+    payload += "Connection: close\r\n";
+    payload += "Content-Length: " + String(statusMessage.length()) + "\r\n";
+    payload += "Cache-Control: no-cache\r\n";
+    payload += "\r\n" + statusMessage;
 
-    payload =  "POST " + String(tweetURI) + " HTTP/1.1\r\n" +
-                        "Host: " + String(thingSpeak) + "\r\n" +
-                        "Content-Type: application/x-www-form-urlencoded" + "\r\n" +
-                        "api_key: Y6OS7WNU7BSQDADR" + "\r\n";
-                        "status: " + String(statusMessage); + "\r\n";
-
-    Serial.println("Payload to send: " + payload);
     // TCP connect
     tcp_connect();
     // Send data length & GET string
-    ser.println(F("AT+CIPSEND="));  
+    ser.print(F("AT+CIPSEND="));
     ser.println(payload.length());
-    Serial.print(F("AT+CIPSEND="));  
+    Serial.print(F("AT+CIPSEND="));
     Serial.println(payload.length());
 
     delay(1000);
-    ser.println(payload);  // send data 
+    ser.print(payload); // send data
     Serial.println(payload);
     delay(1000);
-    ser.println(F("AT+CIPCLOSE")); // close the connection 
-    Serial.println(F("AT+CIPCLOSE")); 
+    ser.print(F("AT+CIPCLOSE")); // close the connection
+    Serial.println(F("AT+CIPCLOSE"));
 }
 
 // =============== functions below used to connect to thinkspeak to retrieve data ================//
@@ -96,19 +97,22 @@ void postThinkTweet(String condition)
 // TCP connection
 void tcp_connect()
 {
-    ser.println(F("AT+RST\r\n"));
-    ser.println(F("AT+CWMODE=1\r\n"));
-    ser.println("AT+CWJAP=\"" + String("T923WIFI") + "\",\"" + String("abc1234567") + "\"");
+    // Connecting to wifi //
+    ser.print(F("AT+RST\r\n"));
+    ser.print(F("AT+CWMODE=1\r\n"));
+    ser.print("AT+CWJAP=\"" + String("T923WIFI") + "\",\"" + String("abc1234567") + "\"");
     // sendData("AT+CWJAP=\"T923WIFI\",\"abc1234567\"\r\n", 4000, DEBUG);
-    ser.println(F("AT+CIPMUX=0\r\n"));
+    ser.print(F("AT+CIPMUX=0\r\n"));
+    Serial.println(F("Connected to Wifi!"));
     delay(5000);
 
-    // Make TCP connection
+    // Make TCP connection to thinkspeak //
     String cmd = F("AT+CIPSTART=\"TCP\",\"");
     cmd += F("184.106.153.149"); // Thingspeak.com's IP address
     // ****************************************************************** Change this!
     cmd += F("\",80\r\n");
-    ser.println(cmd); // start tcp connection //
+    ser.print(cmd); // start tcp connection //
+    Serial.println(cmd);
 }
 
 // tweet message + api key + door has been unlocked
@@ -139,4 +143,3 @@ String tempAlertTweet(String condition, String twitterAPIKey, String tweetURI)
         return tempAlert;
     }
 }
-

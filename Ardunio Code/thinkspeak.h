@@ -10,4 +10,3 @@ void postThinkSpeak(int fieldNo, int numberOfFields, String uniqueInput);
 // Thinktweet function //
 void postThinkTweet(String condition);
 // Conditions : Door Open OR Incorrect attempts warning //
-
