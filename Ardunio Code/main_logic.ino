@@ -7,8 +7,11 @@
 #include <SoftwareSerial.h>
 
 // ====== import from header file ====== //
-#include "thinkspeak.h"
+// #include "thinkspeak.h"
 // ==================== Defining sensors  ====================//
+
+// for ser //
+SoftwareSerial ser(2, 3); // RX, TX
 
 // for RFID //
 #define SS_PIN 10
@@ -24,9 +27,6 @@ static int buzzerPin = 8;
 // pin for servo motor //
 Servo myservo;
 static int servoPin = 9;
-
-// ser //
-SoftwareSerial ser(2, 3); // RX, TX
 
 // ultrasonic pins //
 static int Trig = 6; // Trig connected to pin 6
@@ -115,6 +115,7 @@ String RFID()
     // other card uid (blue one) is  AC 31 A9 33 ac 31 a9 33 //
     if (uid == " 45 a6 f5 2a")
     {
+        uid = "45";
         return String(uid);
     }
     else
@@ -165,7 +166,6 @@ long ultrasonic_ranger()
 // ========================= Below is the main Loop =========================//
 void loop()
 {
-
     // first, use Ultrasonic sensor to detect whether there is an object within 1m //
     long dist = ultrasonic_ranger();
     // storing of number of wrong attempts //
@@ -199,11 +199,13 @@ void loop()
             servo_motor();                     // opening of door //
             lcd.begin(16, 2);                  // reset the LCD //
             lcd.print(F("Offing LCD..."));
+
             // send thinkspeak and thinktweet //
             // validRFID contains the uid of the RFID //
-            postThinkSpeak(1, 0, "");    // upload to thinkspeak that door has been opened //
+            tcp_connect();
             postThinkTweet(F("Door Open")); // send to twitter, informing the owner //
-            postThinkSpeak(2, 1, validRFID);
+            tcp_connect();
+            postThinkSpeak_OPEN(validRFID);
             // Break out of loop //
             lcd.begin(16, 2); // reset the LCD //
             break;
@@ -238,10 +240,191 @@ void loop()
         lcd.setCursor(0, 1);
         lcd.print(F("for 10 minutes.."));
         // notifying of owner via app by thinkspeak //
-        postThinkSpeak(3, 0, "");    // upload to thinkspeak that door has been opened //
+        tcp_connect();
+        postThinkSpeak_FAIL();                            // upload to thinkspeak that door has been opened //
+        tcp_connect();
+        postThinkTweet("Incorrect attempts warning");     // Post to twitter to notify owner //
         postThinkTweet(F("Incorrect attempts warning ")); // send to twitter, informing the owner //
 
-        delay(10000); // 10 sec waiting time //
+        delay(2000);     // 2 sec waiting time + upload time //
         lcd.begin(16, 2); // reset the LCD //
     }
+}
+
+
+// ========================= Below are functions used to upload / read to thinkspeak and thinktweet =========================//
+
+#define DEBUG true
+
+// =====================================================//
+// Thinkspeak and thinktweet setup //
+const char *thingSpeak = "api.thingspeak.com";
+
+// Setup for thinkspeak //
+
+// Thinkspeak Function //
+// Field no is the field to post to thinkspeak and numberOfFields is the number of fields to post
+// after the initial fieldNo. uniqueInput allows to post to thinkspeak a unique input//
+void postThinkSpeak_OPEN(String uniqueInput)
+{
+    // Crafting of get request str //
+    String apiWriteKey = F("Q3X0NH6PSG5W6DO1");
+    String getStr = F("/update?api_key=");
+    getStr += String(apiWriteKey);
+    getStr += "&field1=1";
+    getStr += "&field2="; // this will send RFID card tag //
+    getStr += uniqueInput;
+    // Crafting of get request str //
+    String payload = "GET https://";
+    payload += thingSpeak + getStr;
+    payload += "\r\n";
+    Serial.println();
+    Serial.print(payload);
+    // Send data length & GET string
+    ser.print("AT+CIPSEND=");
+    ser.println(payload.length());
+    Serial.print("AT+CIPSEND=");
+    Serial.println(payload.length());
+    delay(500);
+    if (ser.find(">"))
+    {
+        Serial.print(">");
+        sendData(payload, 2000, DEBUG);
+    }
+
+    // Close connection, wait a while before repeating...
+    sendData("AT+CIPCLOSE", 10000, DEBUG); // thingspeak needs 15 sec delay between updates
+}
+
+// This function is for after 5 incorrect attempts //
+void postThinkSpeak_FAIL()
+{
+    // Crafting of get request str //
+    String apiWriteKey = F("Q3X0NH6PSG5W6DO1");
+    String getStr = F("/update?api_key=");
+    getStr += String(apiWriteKey);
+    getStr += F("&field3=1");
+    // Crafting of get request str //
+    String payload = F("GET https://");
+    payload += thingSpeak + getStr;
+    payload += "\r\n";
+    // Send data length & GET string
+    ser.print("AT+CIPSEND=");
+    ser.println(payload.length());
+    Serial.print("AT+CIPSEND=");
+    Serial.println(payload.length());
+    delay(500);
+    if (ser.find(">"))
+    {
+        Serial.print(">");
+        sendData(payload, 2000, DEBUG);
+    }
+
+    // Close connection, wait a while before repeating...
+    sendData("AT+CIPCLOSE", 10000, DEBUG); // thingspeak needs 15 sec delay between updates
+}
+
+// think tweet function//
+// Conditions : Door Open OR Incorrect attempts warning //
+void postThinkTweet(String condition)
+{
+    String twitterAPIKey = "5YIAWRJTIVRJY6OH";
+    String tweetURI = "/apps/thingtweet/1/statuses/update";
+
+    // POST https://api.thingspeak.com/apps/thingtweet/1/statuses/update
+    // api_key=Y6OS7WNU7BSQDADR
+    // status=I just posted this from my thing! //
+
+    // Crafting of post request str //
+    String statusMessage = tempAlertTweet(condition, twitterAPIKey, tweetURI);
+    // Example Get request	https://api.thingspeak.com/apps/thingtweet/1/statuses/update?api_key=XXXXXXXXXXXXXXXX&status=HeyWorld //
+    String payload = "GET https://api.thingspeak.com/apps/thingtweet/1/statuses/update?";
+    payload += statusMessage;
+    payload += "\r\n";
+    Serial.println(payload);
+    // Send data length & GET string
+    ser.print("AT+CIPSEND=");
+    ser.println(payload.length());
+    Serial.print("AT+CIPSEND=");
+    Serial.println(payload.length());
+    delay(500);
+    if (ser.find(">"))
+    {
+        Serial.print(">");
+        sendData(payload, 2000, DEBUG);
+    }
+
+    // Close connection, wait a while before repeating...
+    sendData("AT+CIPCLOSE", 10000, DEBUG); // thingspeak needs 15 sec delay between updates
+}
+
+// =============== functions below used to connect to thinkspeak to retrieve data ================//
+
+// TCP connection
+void tcp_connect()
+{
+    sendData("AT+RST\r\n", 2000, DEBUG);
+    sendData("AT+CWMODE=1\r\n", 2000, DEBUG);
+    sendData("AT+CWJAP=\"T923WIFI\",\"abc1234567\"\r\n", 4000, DEBUG);
+    // ****************************************************************** Change these!
+    sendData("AT+CIPMUX=0\r\n", 2000, DEBUG);
+
+    // Make TCP connection
+    String cmd = "AT+CIPSTART=\"TCP\",\"";
+    cmd += "184.106.153.149"; // Thingspeak.com's IP address
+    // ****************************************************************** Change this!
+    cmd += "\",80\r\n";
+    sendData(cmd, 2000, DEBUG);
+}
+
+// tweet message + api key + door has been unlocked
+String tempAlertTweet(String condition, String twitterAPIKey, String tweetURI)
+{
+    // tweet message
+    String tempAlert = "";
+    if (condition == "Door Open")
+    {
+        // String tempAlert = "api_key=" + String(twitterAPIKey) + "&status=Door has been Open! [" + String(millis()) + "]";
+        tempAlert += "api_key=";
+        tempAlert += String(twitterAPIKey);
+        tempAlert += "&status=Door-has-been-Open!==[";
+        tempAlert += String(millis());
+        tempAlert += "]";
+        return tempAlert;
+    }
+    else if (condition == "Incorrect attempts warning")
+    {
+        // String tempAlert = "api_key=" + String(twitterAPIKey) + "&[WARNING] There has been 5 incorrect attempts made to open the door. [" + String(millis()) + "]";
+        tempAlert += F("api_key=");
+        tempAlert += String(twitterAPIKey);
+        tempAlert += F("&status=[WARNING]-There-has-been-5-incorrect-attempts-made-to-open-the-door!==[");
+        tempAlert += String(millis());
+        tempAlert += F("]'");
+        return tempAlert;
+    }
+}
+
+String sendData(String command, const int timeout, boolean debug)
+{
+    String response = "";
+    ser.print(command);
+    long int time = millis();
+
+    while ((time + timeout) > millis())
+    {
+        while (ser.available())
+        {
+            // "Construct" response from ESP01 as follows
+            // - this is to be displayed on Serial Monitor.
+            char c = ser.read(); // read the next character.
+            response += c;
+        }
+    }
+
+    if (debug)
+    {
+        Serial.print(response);
+    }
+
+    return (response);
 }
