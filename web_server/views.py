@@ -45,10 +45,20 @@ def login():
     if request.method == "POST":
         username = request.form['username']
         password = request.form['password']
+        global global_username
         
+
         if username == "admin":
-            if password == "password":
-                global global_username
+            if password == "admin":
+                global_username = username
+                return redirect(url_for('views.dashboard'))
+            else:
+                error = "Password is incorrect"
+        else:
+            error = "Username does not exist"
+
+        if username == "john":
+            if password == "abc123":
                 global_username = username
                 return redirect(url_for('views.dashboard'))
             else:
