@@ -1,1 +1,0 @@
-This project is also accessible on github via https://github.com/LeonardBored/FIOT-Assignment
