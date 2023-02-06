@@ -118,8 +118,13 @@ String RFID()
     if (uid == " 45 a6 f5 2a")
     {
         uid = "45";
-        return String(uid);
+        return uid;
     }
+    // else if (uid == " AC 31 A9 33 ac 31 a9 33")
+    // {
+    //     uid = "31";
+    //     return uid;
+    // }
     else
     { // for invalid RFID //
         return "false";
@@ -159,7 +164,9 @@ long ultrasonic_ranger()
         Serial.print(F(" cm"));
         Serial.println();
         delay(500);
-    } else {
+    }
+    else
+    {
         Serial.print(F("No nearby objects detected..."));
         Serial.println(F("Detecting any remote operations..."));
     }
@@ -247,12 +254,12 @@ void loop()
         lcd.print(F("for 10 minutes.."));
         // notifying of owner via app by thinkspeak //
         tcp_connect();
-        postThinkSpeak_FAIL();                            // upload to thinkspeak that door has been opened //
+        postThinkSpeak_FAIL(); // upload to thinkspeak that door has been opened //
         tcp_connect();
         postThinkTweet("Incorrect attempts warning");     // Post to twitter to notify owner //
         postThinkTweet(F("Incorrect attempts warning ")); // send to twitter, informing the owner //
 
-        delay(2000);     // 2 sec waiting time + upload time //
+        delay(2000);      // 2 sec waiting time + upload time //
         lcd.begin(16, 2); // reset the LCD //
     }
 
@@ -260,19 +267,20 @@ void loop()
     tcp_connect();
     String remoteOperation = readThinkSpeak();
     // for remote operation: //
-    if (remoteOperation == "remote open door") {
+    if (remoteOperation == "remote open door")
+    {
         lcd.begin(16, 2); // reset the LCD //
         lcd.print(F("Welcome Home!"));
         Buzzer(buzzerPin, "Correct RFID"); // sound the buzzer for correct //
         servo_motor();                     // opening of door //
         // post back to thinkspeak field 4 a value of 0 //
+        lcd.begin(16, 2); // reset the LCD //
         tcp_connect();
         remoteReplyThinkspeak();
+        tcp_connect();
+        postThinkTweet("Door Open");
     }
-
-
 }
-
 
 // ========================= Below are functions used to upload / read to thinkspeak and thinktweet =========================//
 
@@ -284,9 +292,9 @@ const char *thingSpeak = "api.thingspeak.com";
 
 // Setup for thinkspeak //
 
-// Thinkspeak Function //
-// Field no is the field to post to thinkspeak and numberOfFields is the number of fields to post
-// after the initial fieldNo. uniqueInput allows to post to thinkspeak a unique input//
+// Thingspeak Function //
+// This function updates fields 1 & 2 in thingspeak, allowing thingspeak to know that the door was open by what RFID //
+// it gets a unique input, for sending the RFID number over to thinkspeak //
 void postThinkSpeak_OPEN(String uniqueInput)
 {
     // Crafting of get request str //
@@ -383,7 +391,8 @@ void postThinkTweet(String condition)
 
 // This function will read the selected field: 4 from thinkspeak //
 // This fields are responsible for doing remote unlock //
-String readThinkSpeak() {
+String readThinkSpeak()
+{
     // Crafting of get request str //
     String payload = F("GET https://api.thingspeak.com/channels/2008441/fields/4.json?api_key=N0KL9SHVN3B1YOD7&results=1");
     payload += F("\r\n");
@@ -404,15 +413,14 @@ String readThinkSpeak() {
         responseList = sendData(payload, 1000, DEBUG);
     }
     // Close connection, wait a while before repeating...
-    sendData("AT+CIPCLOSE", 2000, DEBUG); 
+    sendData("AT+CIPCLOSE", 2000, DEBUG);
 
     // Process the JSON //
-    // we will search for the string //
-    Serial.println(responseList);
-    
+
     String searchString = "\"field4\":\"1\"";
     int searchIndex = responseList.indexOf(searchString);
-    if (searchIndex != -1) {
+    if (searchIndex != -1)
+    {
         Serial.println(F("String Found!"));
         return "remote open door";
     }
@@ -421,12 +429,13 @@ String readThinkSpeak() {
 
 // After execution of remote opertaions, this function will send a value to the respecitive field in thinkspeak to
 // mean that the function has been executed. When a new remote operation is called, thinkspeak will have a value of 1 in the field //
-void remoteReplyThinkspeak() {
+void remoteReplyThinkspeak()
+{
     // Crafting of get request str //
     String apiWriteKey = F("Q3X0NH6PSG5W6DO1");
     String getStr = F("/update?api_key=");
     getStr += String(apiWriteKey);
-    getStr += F("&field4=0"); 
+    getStr += F("&field4=0");
     // Crafting of get request str //
     String payload = F("GET https://");
     payload += thingSpeak + getStr;
@@ -445,7 +454,7 @@ void remoteReplyThinkspeak() {
 
     // Close connection, wait a while before repeating...
     sendData("AT+CIPCLOSE", 1000, DEBUG); // thingspeak needs 15 sec delay between updates
-} 
+}
 
 // =============== functions below used to connect to thinkspeak to retrieve data ================//
 
@@ -454,7 +463,8 @@ void tcp_connect()
 {
     sendData("AT+RST\r\n", 2000, DEBUG);
     sendData("AT+CWMODE=1\r\n", 2000, DEBUG);
-    sendData("AT+CWJAP=\"T923WIFI\",\"abc1234567\"\r\n", 4000, DEBUG);
+    sendData("AT+CWJAP=\"AndroidAP\",\"nvdm4678\"\r\n", 4000, DEBUG);
+    // sendData("AT+CWJAP=\"T923WIFI\",\"abc1234567\"\r\n", 4000, DEBUG);
     // ****************************************************************** Change these!
     sendData("AT+CIPMUX=0\r\n", 2000, DEBUG);
 
@@ -514,5 +524,4 @@ String sendData(String command, const int timeout, boolean debug)
     }
 
     return (response);
-
 }
