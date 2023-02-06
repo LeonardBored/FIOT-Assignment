@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Home{% endblock %}</title>
+    <title>{% block title %}Login{% endblock %}</title>
     <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css')}}">
 
     <!-- Bootstrap CSS -->
@@ -12,23 +12,34 @@
 
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-5">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{url_for('views.index')}}">Security System</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-                <div class="navbar-nav">
-                    <a class="nav-link" href="{{url_for('views.dashboard')}}">Home</a>
-                    <a class="nav-link" href="{{url_for('views.profile')}}">Profile</a>
-                </div>
-            </div>
-        </div>
-    </nav>
     
-    {% block content %}
-    {% endblock %}
+    <div class="container">
+        <div class="row text-center mt-5">
+            <h1>Login</h1>
+            <div class="col-6 mx-auto ">
+            <form method="POST">
+                <div class="row g-3 mt-3">
+                    <div class="col-12 form-floating">
+                        <input type="text" name="username" class="form-control">
+                        <label>Username</label>
+                    </div>
+                    <div class="col-12 form-floating">
+                        <input type="password" name="password" class="form-control">
+                        <label>Password</label>
+                    </div>
+                    <div class="col-12">
+                        <a href="#" class="float-start">Forgot Password</a>
+                        <a href="#" class="float-end">Create Password</a>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+    
+            {% if error %}
+                <h4><strong>Error:</strong> {{error}}</h4>
+            {% endif %}
+        </div>
+    </div>
 
     <!-- jQuery Import -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>

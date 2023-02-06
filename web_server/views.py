@@ -26,9 +26,8 @@ def dashboard():
                 getStr = "/update?api_key="
                 getStr += apiWriteKey
                 getStr += "&field4=1"
-                payload = "GET https://"
+                payload = "https://"
                 payload += "api.thingspeak.com" + getStr
-                payload += "\r\n"
                 x = requests.get(payload)
                 print(x.status_code)
 

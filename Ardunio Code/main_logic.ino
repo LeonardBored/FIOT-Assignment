@@ -256,7 +256,6 @@ void loop()
         tcp_connect();
         postThinkSpeak_FAIL(); // upload to thinkspeak that door has been opened //
         tcp_connect();
-        postThinkTweet("Incorrect attempts warning");     // Post to twitter to notify owner //
         postThinkTweet(F("Incorrect attempts warning ")); // send to twitter, informing the owner //
 
         delay(2000);      // 2 sec waiting time + upload time //
@@ -279,6 +278,8 @@ void loop()
         remoteReplyThinkspeak();
         tcp_connect();
         postThinkTweet("Door Open");
+        tcp_connect();
+        postThinkSpeak_OPEN("Remote");
     }
 }
 
@@ -305,7 +306,7 @@ void postThinkSpeak_OPEN(String uniqueInput)
     getStr += "&field2="; // this will send RFID card tag //
     getStr += uniqueInput;
     // Crafting of get request str //
-    String payload = "GET https://";
+    String payload = F("GET https://");
     payload += thingSpeak + getStr;
     payload += "\r\n";
     Serial.println();
@@ -369,7 +370,7 @@ void postThinkTweet(String condition)
     // Crafting of post request str //
     String statusMessage = tempAlertTweet(condition, twitterAPIKey, tweetURI);
     // Example Get request  https://api.thingspeak.com/apps/thingtweet/1/statuses/update?api_key=XXXXXXXXXXXXXXXX&status=HeyWorld //
-    String payload = "GET https://api.thingspeak.com/apps/thingtweet/1/statuses/update?";
+    String payload = F("GET https://api.thingspeak.com/apps/thingtweet/1/statuses/update?");
     payload += statusMessage;
     payload += "\r\n";
     Serial.println(payload);
@@ -416,6 +417,7 @@ String readThinkSpeak()
     sendData("AT+CIPCLOSE", 2000, DEBUG);
 
     // Process the JSON //
+    Serial.println(responseList);
 
     String searchString = "\"field4\":\"1\"";
     int searchIndex = responseList.indexOf(searchString);
@@ -463,8 +465,7 @@ void tcp_connect()
 {
     sendData("AT+RST\r\n", 2000, DEBUG);
     sendData("AT+CWMODE=1\r\n", 2000, DEBUG);
-    sendData("AT+CWJAP=\"AndroidAP\",\"nvdm4678\"\r\n", 4000, DEBUG);
-    // sendData("AT+CWJAP=\"T923WIFI\",\"abc1234567\"\r\n", 4000, DEBUG);
+    sendData("AT+CWJAP=\"T923WIFI\",\"abc1234567\"\r\n", 4000, DEBUG);
     // ****************************************************************** Change these!
     sendData("AT+CIPMUX=0\r\n", 2000, DEBUG);
 
@@ -480,7 +481,7 @@ void tcp_connect()
 String tempAlertTweet(String condition, String twitterAPIKey, String tweetURI)
 {
     // tweet message
-    String tempAlert = "";
+    String tempAlert = F("");
     tempAlert += "api_key=";
     tempAlert += String(twitterAPIKey);
     if (condition == "Door Open")
@@ -494,16 +495,16 @@ String tempAlertTweet(String condition, String twitterAPIKey, String tweetURI)
     else if (condition == "Incorrect attempts warning")
     {
         // String tempAlert = "api_key=" + String(twitterAPIKey) + "&[WARNING] There has been 5 incorrect attempts made to open the door. [" + String(millis()) + "]";
-        tempAlert += F("&status=[WARNING]-There-has-been-5-incorrect-attempts-made-to-open-the-door!==[");
+        tempAlert += "&status=[WARNING]-There-has-been-5-incorrect-attempts-made-to-open-the-door!==[";
         tempAlert += String(millis());
-        tempAlert += F("]'");
+        tempAlert += "]'";
         return tempAlert;
     }
 }
 
 String sendData(String command, const int timeout, boolean debug)
 {
-    String response = "";
+    String response = F("");
     ser.print(command);
     long int time = millis();
 
