@@ -87,7 +87,7 @@ void Buzzer(int buzzerPin, String condition)
 /// RFID Code //
 String RFID()
 {
-    // Look for new cards
+    // // Look for new cards
     if (!mfrc522.PICC_IsNewCardPresent())
     {
         return ".";
@@ -108,8 +108,8 @@ String RFID()
         uid += String(mfrc522.uid.uidByte[i] < 0x10 ? F(" 0") : F(" "));
         uid += String(mfrc522.uid.uidByte[i], HEX);
 
-        Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? F(" 0") : F(" "));
-        Serial.print(mfrc522.uid.uidByte[i], HEX);
+        // Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? F(" 0") : F(" "));
+        // Serial.print(mfrc522.uid.uidByte[i], HEX);
     }
     Serial.println(uid);
 
@@ -120,11 +120,11 @@ String RFID()
         uid = "45";
         return uid;
     }
-    // else if (uid == " AC 31 A9 33 ac 31 a9 33")
-    // {
-    //     uid = "31";
-    //     return uid;
-    // }
+    else if (uid == " ac 31 a9 33")
+    {
+        uid = "31";
+        return uid;
+    }
     else
     { // for invalid RFID //
         return "false";
@@ -256,7 +256,7 @@ void loop()
         tcp_connect();
         postThinkSpeak_FAIL(); // upload to thinkspeak that door has been opened //
         tcp_connect();
-        postThinkTweet(F("Incorrect attempts warning ")); // send to twitter, informing the owner //
+        postThinkTweet(F("Incorrect attempts warning")); // send to twitter, informing the owner //
 
         delay(2000);      // 2 sec waiting time + upload time //
         lcd.begin(16, 2); // reset the LCD //
@@ -368,7 +368,8 @@ void postThinkTweet(String condition)
     // status=I just posted this from my thing! //
 
     // Crafting of post request str //
-    String statusMessage = tempAlertTweet(condition, twitterAPIKey, tweetURI);
+    String statusMessage = F("");
+    statusMessage += tempAlertTweet(condition, twitterAPIKey, tweetURI);
     // Example Get request  https://api.thingspeak.com/apps/thingtweet/1/statuses/update?api_key=XXXXXXXXXXXXXXXX&status=HeyWorld //
     String payload = F("GET https://api.thingspeak.com/apps/thingtweet/1/statuses/update?");
     payload += statusMessage;
